@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning d'équipe — ICS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff;
+    --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.15);
+    --text: #1a1a18; --text-2: #6b6b67; --text-3: #9e9e99;
+    --conges-bg: #fde8d8; --conges-border: #c45a1a; --conges-text: #7a3510;
+    --today: #e24b4a; --radius: 8px; --radius-lg: 14px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 32px 24px 64px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+  .header-left h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; }
+  .header-left p { font-size: 13px; color: var(--text-2); margin-top: 3px; font-family: 'DM Mono', monospace; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  button { font-family: 'DM Sans', sans-serif; font-size: 13px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: var(--radius); padding: 7px 14px; cursor: pointer; color: var(--text); transition: background 0.12s; }
+  button:hover { background: #f0eeea; }
+  button.active { background: var(--text); color: var(--surface); border-color: var(--text); }
+  button.icon-btn { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+  button.icon-btn:hover { color: var(--text); }
+  button.icon-btn.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+  button.icon-btn.on svg { stroke: var(--surface); }
+  .controls { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .nav-group { display: flex; align-items: center; gap: 6px; }
+  .nav-group button { padding: 7px 10px; font-size: 16px; line-height: 1; }
+  .range-label { min-width: 160px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-2); }
+  .sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 4px; }
+  .legend { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); }
+  .legend-pill { width: 24px; height: 12px; border-radius: 3px; }
+
+  .color-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; display: none; }
+  .color-panel.open { display: block; }
+  .color-panel-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .color-panel-top h2 { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-family: 'DM Mono', monospace; }
+  .reset-all { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-strong); background: none; color: var(--text-3); cursor: pointer; }
+  .reset-all:hover { color: var(--text); background: #f0eeea; }
+  .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 8px; }
+  .color-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); transition: border-color 0.12s; }
+  .color-row:hover { border-color: var(--border-strong); }
+  .color-swatch { width: 22px; height: 22px; border-radius: 5px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); cursor: pointer; transition: transform 0.1s; }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-row span { font-size: 12px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .color-row input[type=color] { display: none; }
+
+  .tl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .tl-scroll { overflow-x: auto; }
+  .tl-inner { min-width: 640px; }
+  .tl-header-row { display: flex; border-bottom: 1px solid var(--border); background: #faf9f7; position: sticky; top: 0; z-index: 10; }
+  .tl-name-col { width: 120px; flex-shrink: 0; padding: 10px 12px; }
+  .tl-months { flex: 1; display: flex; }
+  .tl-month { flex: 1; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-3); text-align: center; padding: 10px 0; border-left: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.04em; }
+  .tl-month.current { color: var(--today); font-weight: 500; }
+  .tl-person-row { display: flex; align-items: center; min-height: 40px; border-bottom: 1px solid var(--border); }
+  .tl-person-row:last-child { border-bottom: none; }
+  .tl-person-row:hover { background: #faf9f7; }
+  .tl-name { width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--text); padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-bar-area { flex: 1; position: relative; height: 40px; }
+  .tl-grid-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; pointer-events: none; }
+  .tl-month-col { flex: 1; border-left: 1px solid var(--border); }
+  .tl-bar { position: absolute; top: 9px; height: 22px; border-radius: 5px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: filter 0.12s, top 0.12s, height 0.12s; cursor: default; }
+  .tl-bar:hover { filter: brightness(0.9); top: 8px; height: 24px; }
+  .tl-bar.conges { background: var(--conges-bg); border: 1px solid var(--conges-border); color: var(--conges-text); }
+  .tl-today-line { position: absolute; top: 0; bottom: 0; width: 1.5px; background: var(--today); opacity: 0.7; pointer-events: none; z-index: 5; }
+  .empty-state { padding: 40px; text-align: center; color: var(--text-3); font-size: 13px; }
+  #status { font-size: 12px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+  #status.error { color: var(--conges-border); }
+  .tooltip { position: fixed; background: var(--text); color: var(--surface); font-size: 11px; font-family: 'DM Mono', monospace; padding: 6px 10px; border-radius: var(--radius); pointer-events: none; z-index: 100; white-space: nowrap; opacity: 0; transition: opacity 0.1s; }
+</style>
+</head>
+<body>
+<div class="tooltip" id="tooltip"></div>
+
+<header>
+  <div class="header-left">
+    <h1>Planning d'équipe</h1>
+    <p id="last-updated">—</p>
+  </div>
+  <div class="header-right">
+    <span id="status"></span>
+    <button class="icon-btn" id="btn-source" onclick="toggleSourcePanel()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Source
+    </button>
+    <button class="icon-btn" id="btn-palette" onclick="togglePanel()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+      Couleurs
+    </button>
+    <button class="icon-btn" id="btn-refresh" onclick="loadAndRender()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      Actualiser
+    </button>
+  </div>
+</header>
+
+<div class="color-panel" id="source-panel">
+  <div class="color-panel-top">
+    <h2>Source du calendrier</h2>
+    <button class="reset-all" onclick="loadDemo()">Revenir à la démo</button>
+  </div>
+  <p style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5;">
+    Collez l'URL d'un flux ICS (export "adresse secrète" de Google Calendar, export ICS d'Outlook, etc.).
+    L'URL reste uniquement dans votre navigateur (localStorage), rien n'est envoyé à un serveur.
+    Si le chargement échoue, votre fournisseur de calendrier bloque probablement les requêtes cross-origin (CORS) —
+    passez par un proxy CORS ou un flux ICS hébergé par vous-même.
+  </p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="text" id="ics-url-input" placeholder="https://.../calendar.ics"
+      style="flex:1;min-width:240px;font-family:'DM Mono',monospace;font-size:12px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);">
+    <button onclick="applyIcsUrl()">Charger cette source</button>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="nav-group">
+    <button onclick="shiftView(-1)">‹</button>
+    <span class="range-label" id="range-label"></span>
+    <button onclick="shiftView(1)">›</button>
+  </div>
+  <div class="sep"></div>
+  <button onclick="resetView()">Aujourd'hui</button>
+  <div class="sep"></div>
+  <button onclick="setRange(3)" id="btn-3">3 mois</button>
+  <button onclick="setRange(6)" id="btn-6" class="active">6 mois</button>
+  <button onclick="setRange(12)" id="btn-12">12 mois</button>
+</div>
+
+<div class="color-panel" id="color-panel">
+  <div class="color-panel-top">
+    <h2>Couleur par projet</h2>
+    <button class="reset-all" onclick="resetAllColors()">Réinitialiser tout</button>
+  </div>
+  <div class="color-grid" id="color-grid"></div>
+</div>
+
+<div class="legend" id="legend">
+  <div class="legend-item">
+    <div class="legend-pill" style="background:var(--conges-bg);border:1px solid var(--conges-border)"></div>
+    Congés
+  </div>
+  <div class="legend-item">
+    <div style="width:3px;height:16px;background:var(--today);border-radius:2px;opacity:0.7"></div>
+    Aujourd'hui
+  </div>
+</div>
+
+<div class="tl-wrap">
+  <div class="tl-scroll">
+    <div class="tl-inner">
+      <div class="tl-header-row">
+        <div class="tl-name-col"></div>
+        <div class="tl-months" id="months-header"></div>
+      </div>
+      <div id="tl-rows"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ICS_URL_KEY = 'planning-ics-url';
+const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+const PALETTE = ['#378ADD','#1D9E75','#7F77DD','#D85A30','#D4537E','#639922','#BA7517','#0F6E56','#993C1D','#534AB7'];
+
+let events = [], projectNames = [], projectColors = {}, nMonths = 6;
+let viewStart = new Date();
+viewStart = new Date(viewStart.getFullYear(), viewStart.getMonth(), 1);
+
+const tooltip = document.getElementById('tooltip');
+
+function loadColors() {
+  try { projectColors = JSON.parse(localStorage.getItem('planning-colors') || '{}'); } catch(e) { projectColors = {}; }
+}
+function saveColors() { localStorage.setItem('planning-colors', JSON.stringify(projectColors)); }
+
+function getColor(name) {
+  if (projectColors[name]) return projectColors[name];
+  return PALETTE[projectNames.indexOf(name) % PALETTE.length];
+}
+
+function colorStyles(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return {
+    bg: `rgba(${r},${g},${b},0.13)`,
+    border: hex,
+    text: `rgb(${Math.round(r*0.4)},${Math.round(g*0.4)},${Math.round(b*0.4)})`
+  };
+}
+
+function togglePanel() {
+  const panel = document.getElementById('color-panel');
+  const btn = document.getElementById('btn-palette');
+  panel.classList.toggle('open');
+  btn.classList.toggle('on', panel.classList.contains('open'));
+}
+
+function toggleSourcePanel() {
+  const panel = document.getElementById('source-panel');
+  const btn = document.getElementById('btn-source');
+  panel.classList.toggle('open');
+  btn.classList.toggle('on', panel.classList.contains('open'));
+  if (panel.classList.contains('open')) {
+    document.getElementById('ics-url-input').value = localStorage.getItem(ICS_URL_KEY) || '';
+  }
+}
+
+function applyIcsUrl() {
+  const url = document.getElementById('ics-url-input').value.trim();
+  if (!url) return;
+  localStorage.setItem(ICS_URL_KEY, url);
+  loadAndRender();
+}
+
+function loadDemo() {
+  localStorage.removeItem(ICS_URL_KEY);
+  document.getElementById('ics-url-input').value = '';
+  loadAndRender();
+}
+
+// Jeu de données d'exemple affiché tant qu'aucune source ICS personnelle
+// n'est renseignée, pour que l'outil soit utilisable dès l'ouverture.
+function demoEvents() {
+  const today = new Date();
+  const d = (offsetDays) => { const x = new Date(today); x.setDate(x.getDate() + offsetDays); return x; };
+  return [
+    { person: 'Alex', label: 'Refonte site vitrine', type: 'projet', start: d(-10), end: d(18) },
+    { person: 'Alex', label: 'Congés', type: 'conges', start: d(30), end: d(35) },
+    { person: 'Sam', label: 'Migration API', type: 'projet', start: d(-5), end: d(25) },
+    { person: 'Sam', label: 'Audit accessibilité', type: 'projet', start: d(28), end: d(40) },
+    { person: 'Jordan', label: 'Refonte site vitrine', type: 'projet', start: d(-10), end: d(5) },
+    { person: 'Jordan', label: 'Nouvelle offre produit', type: 'projet', start: d(8), end: d(45) },
+    { person: 'Jordan', label: 'Congés', type: 'conges', start: d(50), end: d(55) },
+    { person: 'Camille', label: 'Migration API', type: 'projet', start: d(-15), end: d(10) },
+    { person: 'Camille', label: 'Audit accessibilité', type: 'projet', start: d(15), end: d(38) },
+  ];
+}
+
+function buildColorPanel() {
+  const grid = document.getElementById('color-grid');
+  grid.innerHTML = '';
+  const legend = document.getElementById('legend');
+  const existing = legend.querySelectorAll('.proj-legend');
+  existing.forEach(e => e.remove());
+
+  projectNames.forEach(name => {
+    const hex = getColor(name);
+    const s = colorStyles(hex);
+
+    const row = document.createElement('div');
+    row.className = 'color-row';
+
+    const swatch = document.createElement('div');
+    swatch.className = 'color-swatch';
+    swatch.id = 'swatch-' + name;
+    swatch.style.background = hex;
+
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = hex;
+    input.id = 'cinput-' + name;
+
+    swatch.onclick = () => input.click();
+    input.oninput = (e) => {
+      projectColors[name] = e.target.value;
+      document.getElementById('swatch-' + name).style.background = e.target.value;
+      const li = document.getElementById('legend-' + name);
+      if (li) li.style.background = colorStyles(e.target.value).bg;
+      saveColors();
+      render();
+    };
+
+    const label = document.createElement('span');
+    label.textContent = name;
+
+    row.appendChild(swatch);
+    row.appendChild(label);
+    row.appendChild(input);
+    grid.appendChild(row);
+
+    const li = document.createElement('div');
+    li.className = 'legend-item proj-legend';
+    li.innerHTML = `<div class="legend-pill" id="legend-${name}" style="background:${s.bg};border:1px solid ${s.border}"></div><span>${name}</span>`;
+    legend.appendChild(li);
+  });
+}
+
+function resetAllColors() {
+  projectColors = {};
+  saveColors();
+  buildColorPanel();
+  render();
+}
+
+function parseICS(text) {
+  const evs = [];
+  const blocks = text.split('BEGIN:VEVENT');
+  for (let i = 1; i < blocks.length; i++) {
+    const b = blocks[i];
+    const get = k => { const m = b.match(new RegExp(k + '[^:]*:([^\r\n]+)')); return m ? m[1].trim() : ''; };
+    const summary = get('SUMMARY'), dtstart = get('DTSTART'), dtend = get('DTEND');
+    if (!summary || !dtstart || !dtend) continue;
+    const pd = s => { const d = s.replace(/\D/g,'').slice(0,8); return new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8)); };
+    const start = pd(dtstart);
+    const end = pd(dtend); end.setDate(end.getDate()-1);
+    const lc = summary.toLowerCase();
+    const type = lc.includes('congé') || lc.includes('conge') ? 'conges' : 'projet';
+    const parts = summary.split('>');
+    evs.push({ person: parts[0].trim(), label: parts.length > 1 ? parts[1].trim() : summary, type, start, end, raw: summary });
+  }
+  return evs;
+}
+
+async function loadAndRender() {
+  const btn = document.getElementById('btn-refresh');
+  const status = document.getElementById('status');
+  btn.style.opacity = '0.6';
+  status.className = '';
+
+  const icsUrl = localStorage.getItem(ICS_URL_KEY);
+
+  if (!icsUrl) {
+    events = demoEvents();
+    projectNames = [...new Set(events.filter(e => e.type === 'projet').map(e => e.label))].sort();
+    buildColorPanel();
+    document.getElementById('last-updated').textContent = 'Données de démonstration';
+    status.textContent = events.length + ' événements (démo)';
+    render();
+    btn.style.opacity = '1';
+    return;
+  }
+
+  status.textContent = 'Chargement…';
+  try {
+    const res = await fetch(icsUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    events = parseICS(await res.text());
+    projectNames = [...new Set(events.filter(e => e.type === 'projet').map(e => e.label))].sort();
+    buildColorPanel();
+    const now = new Date();
+    document.getElementById('last-updated').textContent =
+      'Mis à jour ' + now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) + ' à ' +
+      now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    status.textContent = events.length + ' événements';
+    render();
+  } catch(e) {
+    status.className = 'error';
+    status.textContent = 'Erreur : ' + e.message + ' — vérifiez l\'URL ou une restriction CORS';
+    if (events.length > 0) render();
+  } finally { btn.style.opacity = '1'; }
+}
+
+function shiftView(d) { viewStart = new Date(viewStart.getFullYear(), viewStart.getMonth() + d*nMonths, 1); render(); }
+function resetView() { const n = new Date(); viewStart = new Date(n.getFullYear(), n.getMonth(), 1); render(); }
+function setRange(n) {
+  nMonths = n;
+  ['3','6','12'].forEach(x => document.getElementById('btn-'+x).classList.remove('active'));
+  document.getElementById('btn-'+n).classList.add('active');
+  render();
+}
+function fmt(d) { return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }
+
+function render() {
+  const viewEnd = new Date(viewStart.getFullYear(), viewStart.getMonth()+nMonths, 1);
+  const totalMs = viewEnd - viewStart;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const months = Array.from({length:nMonths},(_,i) => new Date(viewStart.getFullYear(), viewStart.getMonth()+i, 1));
+  const isCurrent = d => d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth();
+
+  document.getElementById('range-label').textContent =
+    MONTHS_FR[months[0].getMonth()]+' '+months[0].getFullYear()+' — '+
+    MONTHS_FR[months[months.length-1].getMonth()]+' '+months[months.length-1].getFullYear();
+
+  document.getElementById('months-header').innerHTML = months.map(m =>
+    `<div class="tl-month${isCurrent(m)?' current':''}">${MONTHS_FR[m.getMonth()]} ${m.getFullYear()}</div>`).join('');
+
+  function pct(date) {
+    return (Math.max(viewStart.getTime(), Math.min(viewEnd.getTime(), date.getTime())) - viewStart.getTime()) / totalMs * 100;
+  }
+
+  const rowsEl = document.getElementById('tl-rows');
+  if (!events.length) { rowsEl.innerHTML = '<div class="empty-state">Aucun événement</div>'; return; }
+  rowsEl.innerHTML = '';
+
+  [...new Set(events.map(e => e.person))].sort().forEach(person => {
+    const evs = events.filter(e => e.person===person && e.end>=viewStart && e.start<viewEnd);
+    const row = document.createElement('div'); row.className = 'tl-person-row';
+    const nameEl = document.createElement('div'); nameEl.className = 'tl-name'; nameEl.textContent = person;
+    row.appendChild(nameEl);
+    const area = document.createElement('div'); area.className = 'tl-bar-area';
+    const grid = document.createElement('div'); grid.className = 'tl-grid-bg';
+    months.forEach(() => { const c = document.createElement('div'); c.className = 'tl-month-col'; grid.appendChild(c); });
+    area.appendChild(grid);
+    if (today >= viewStart && today < viewEnd) {
+      const tl = document.createElement('div'); tl.className = 'tl-today-line'; tl.style.left = pct(today)+'%'; area.appendChild(tl);
+    }
+    evs.forEach(ev => {
+      const l = pct(ev.start), r = pct(new Date(ev.end.getTime()+86400000)), w = r-l;
+      if (w < 0.3) return;
+      const bar = document.createElement('div');
+      bar.style.left = l+'%'; bar.style.width = 'calc('+w+'% - 2px)';
+      if (ev.type === 'conges') {
+        bar.className = 'tl-bar conges';
+      } else {
+        bar.className = 'tl-bar';
+        const s = colorStyles(getColor(ev.label));
+        bar.style.background = s.bg; bar.style.border = '1px solid '+s.border; bar.style.color = s.text;
+      }
+      if (w > 3) bar.textContent = ev.label;
+      bar.addEventListener('mouseenter', () => { tooltip.textContent = ev.label+' · '+fmt(ev.start)+' → '+fmt(ev.end); tooltip.style.opacity='1'; });
+      bar.addEventListener('mousemove', e => { tooltip.style.left=(e.clientX+12)+'px'; tooltip.style.top=(e.clientY-28)+'px'; });
+      bar.addEventListener('mouseleave', () => { tooltip.style.opacity='0'; });
+      area.appendChild(bar);
+    });
+    row.appendChild(area); rowsEl.appendChild(row);
+  });
+}
+
+loadColors();
+loadAndRender();
+setInterval(loadAndRender, 5*60*1000);
+</script>
+</body>
+</html>
