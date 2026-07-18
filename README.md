@@ -2,7 +2,20 @@
 
 Un planning d'équipe en Gantt, en une seule page HTML/CSS/JS sans dépendance ni build. Il lit un flux ICS (calendrier iCalendar standard) et affiche les projets et congés de chaque personne sur une timeline, avec navigation par mois et couleurs personnalisables par projet.
 
+![Aperçu du planning avec les données de démonstration](screenshot.png)
+
 Aucune donnée n'est envoyée à un serveur : l'URL du flux et les couleurs choisies restent dans le `localStorage` de votre navigateur.
+
+**Démo live :** https://msadtp.github.io/ics-team-planning/
+
+## Fonctionnalités
+
+- Timeline par personne, vue 3 / 6 / 12 mois, navigation mois par mois
+- Distinction visuelle projets / congés, ligne "aujourd'hui"
+- Couleur personnalisable par projet, mémorisée localement
+- Source de données interchangeable depuis l'interface (pas de config à éditer)
+- Données de démonstration au premier chargement, avant même de connecter un vrai calendrier
+- Aucune dépendance, aucun build : un seul fichier HTML
 
 ## Essayer
 
@@ -22,13 +35,17 @@ Un flux ICS n'est pas toujours accessible depuis le navigateur d'un autre domain
 
 ## Format attendu des événements
 
-Le résumé (`SUMMARY`) de chaque événement ICS est découpé au premier `>` :
+Le résumé (`SUMMARY`) de chaque événement ICS est découpé au premier `>` : la partie avant devient le nom de la personne, celle après le nom du projet.
 
 ```
-Nom de la personne > Nom du projet
+BEGIN:VEVENT
+SUMMARY:Camille > Migration API
+DTSTART;VALUE=DATE:20260703
+DTEND;VALUE=DATE:20260713
+END:VEVENT
 ```
 
-Un événement dont le résumé contient « congé » (insensible à la casse, avec ou sans accent) est classé comme congé plutôt que comme projet, et affiché avec un style distinct.
+Un événement dont le résumé contient « congé » (insensible à la casse, avec ou sans accent — ex. `Camille > Congés`) est classé comme congé plutôt que comme projet, et affiché avec un style distinct.
 
 ## Déployer
 
