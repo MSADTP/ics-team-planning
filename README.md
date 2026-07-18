@@ -4,7 +4,7 @@ Un planning d'équipe en Gantt, en une seule page HTML/CSS/JS sans dépendance n
 
 ![Aperçu du planning avec les données de démonstration](screenshot.png)
 
-Aucune donnée n'est envoyée à un serveur : l'URL du flux et les couleurs choisies restent dans le `localStorage` de votre navigateur.
+Aucune donnée n'est envoyée à un serveur : l'URL du flux, les couleurs et les budgets choisis restent dans le `localStorage` de votre navigateur. C'est aussi une limite à connaître : ces réglages sont propres à un navigateur et un appareil donnés — changer de navigateur, ouvrir une fenêtre privée ou vider le cache les réinitialise.
 
 **Démo live :** https://msadtp.github.io/ics-team-planning/
 
