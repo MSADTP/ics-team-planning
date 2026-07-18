@@ -54,10 +54,12 @@ Un événement dont le résumé contient « congé » (insensible à la casse, a
 
 Depuis le panneau **Projets**, renseignez un budget total par projet. Ce budget est ensuite réparti au prorata du nombre de jours du projet dans chaque mois calendaire — un projet qui s'étale sur deux années voit son budget partagé entre les deux au prorata exact des jours de chaque côté de la frontière, pas divisé arbitrairement.
 
-Deux graphiques en découlent :
+Deux graphiques en découlent, chacun en colonnes empilées reprenant les couleurs définies par projet (une colonne = la composition réelle du CA de cette période) :
 
-- **Par année** : une colonne par année où au moins un projet a du budget, avec la croissance en % par rapport à l'année précédente et par rapport à la toute première année de données.
+- **Par année** : une colonne par année où au moins un projet a du budget.
 - **Détail d'une année** : la même somme éclatée par mois ou par trimestre, pour une année choisie dans le menu déroulant.
+
+Cliquez sur une colonne pour afficher le détail en dessous du graphique : montant total de la période, croissance en % par rapport à l'année précédente et à la toute première année de données (graphique annuel), et la répartition exacte par projet avec sa couleur, son montant et son poids en %.
 
 Le budget d'un projet couvre l'étendue complète du projet, tous intervenants confondus (du premier jour où il apparaît pour n'importe qui à son dernier jour), pas seulement la plage d'une personne en particulier.
 

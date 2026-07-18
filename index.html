@@ -59,13 +59,25 @@
   .revenue-total { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-2); }
   .bar-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 8px 4px 0; }
   .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
-  .bar-value { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-2); margin-bottom: 4px; white-space: nowrap; }
-  .bar-growth { font-size: 10px; font-family: 'DM Mono', monospace; margin-bottom: 2px; white-space: nowrap; }
-  .bar-growth.up { color: #1D9E75; }
-  .bar-growth.down { color: #D85A30; }
-  .bar-fill { width: 100%; max-width: 56px; background: var(--text); border-radius: 4px 4px 0 0; transition: height 0.2s; min-height: 2px; }
-  .bar-label { font-size: 11px; color: var(--text-2); margin-top: 8px; font-family: 'DM Mono', monospace; text-align: center; }
+  .bar-fill { width: 100%; max-width: 56px; border-radius: 4px 4px 0 0; overflow: hidden; transition: height 0.2s; min-height: 2px; display: flex; flex-direction: column-reverse; cursor: pointer; background: var(--text); }
+  .bar-fill.empty { cursor: default; }
+  .bar-fill:hover, .bar-fill.selected { outline: 2px solid var(--text); outline-offset: 1px; }
+  .bar-segment { width: 100%; }
+  .bar-label { font-size: 11px; color: var(--text-2); margin-top: 8px; font-family: 'DM Mono', monospace; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .revenue-empty { padding: 24px; text-align: center; color: var(--text-3); font-size: 13px; }
+
+  .bar-detail { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; display: none; }
+  .bar-detail.open { display: block; }
+  .bar-detail-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .bar-detail-top strong { font-size: 14px; font-weight: 500; }
+  .bar-detail-growth { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-2); margin-bottom: 12px; }
+  .bar-detail-growth .up { color: #1D9E75; }
+  .bar-detail-growth .down { color: #D85A30; }
+  .bar-detail-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12px; }
+  .bar-detail-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .bar-detail-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-detail-amount { font-family: 'DM Mono', monospace; color: var(--text-2); white-space: nowrap; }
+  .bar-detail-pct { font-family: 'DM Mono', monospace; color: var(--text-3); width: 42px; text-align: right; flex-shrink: 0; }
 
   .tl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
   .tl-scroll { overflow-x: auto; }
@@ -190,6 +202,14 @@
     <span class="revenue-total" id="revenue-total-all"></span>
   </div>
   <div id="yearly-chart" class="bar-chart"></div>
+  <div class="bar-detail" id="yearly-detail">
+    <div class="bar-detail-top">
+      <strong id="yearly-detail-title"></strong>
+      <button class="reset-all" onclick="closeBarDetail('yearly')">Fermer</button>
+    </div>
+    <div class="bar-detail-growth" id="yearly-detail-growth"></div>
+    <div id="yearly-detail-list"></div>
+  </div>
 </div>
 
 <div class="revenue-section">
@@ -202,6 +222,13 @@
     </div>
   </div>
   <div id="monthly-chart" class="bar-chart"></div>
+  <div class="bar-detail" id="monthly-detail">
+    <div class="bar-detail-top">
+      <strong id="monthly-detail-title"></strong>
+      <button class="reset-all" onclick="closeBarDetail('monthly')">Fermer</button>
+    </div>
+    <div id="monthly-detail-list"></div>
+  </div>
 </div>
 
 <script>
@@ -399,8 +426,11 @@ function demoBudgets() {
   };
 }
 
-function computeMonthlyRevenue() {
-  const monthly = {};
+// Répartition du CA par mois ET par projet : monthlyByProject['2026-11']
+// = { 'Migration API': 1234, ... }. C'est la donnée source unique dont
+// dérivent les deux graphiques (agrégation par année, par trimestre).
+function computeRevenueBreakdown() {
+  const monthlyByProject = {};
   const budgets = (isDemoMode && Object.keys(projectBudgets).length === 0) ? demoBudgets() : projectBudgets;
   projectNames.forEach(name => {
     const budget = budgets[name];
@@ -409,10 +439,23 @@ function computeMonthlyRevenue() {
     if (!span) return;
     const prorated = prorateAcrossMonths(span.start, span.end, budget);
     Object.entries(prorated).forEach(([key, amount]) => {
-      monthly[key] = (monthly[key] || 0) + amount;
+      if (!monthlyByProject[key]) monthlyByProject[key] = {};
+      monthlyByProject[key][name] = (monthlyByProject[key][name] || 0) + amount;
     });
   });
-  return monthly;
+  return monthlyByProject;
+}
+
+// Agrège la répartition par projet sur un ensemble de clés mois ("2026-11", ...).
+function aggregateByProject(monthKeys, monthlyByProject) {
+  const byProject = {};
+  monthKeys.forEach(key => {
+    const m = monthlyByProject[key];
+    if (!m) return;
+    Object.entries(m).forEach(([name, amt]) => { byProject[name] = (byProject[name] || 0) + amt; });
+  });
+  const total = Object.values(byProject).reduce((a, b) => a + b, 0);
+  return { byProject, total };
 }
 
 function formatEUR(n) {
@@ -423,48 +466,78 @@ function setGranularity(g) {
   revenueGranularity = g;
   document.getElementById('btn-granularity-month').classList.toggle('active', g === 'month');
   document.getElementById('btn-granularity-quarter').classList.toggle('active', g === 'quarter');
+  closeBarDetail('monthly');
   renderMonthlyChart();
 }
 
+function closeBarDetail(which) {
+  document.getElementById(which + '-detail').classList.remove('open');
+  document.querySelectorAll('#' + which + '-chart .bar-fill.selected').forEach(el => el.classList.remove('selected'));
+}
+
+// Rendu commun des barres empilées (une couleur par projet, proportionnelle
+// au poids de ce projet dans la période) pour les deux graphiques.
+function stackedBarHtml(byProject, total, heightPct) {
+  if (total <= 0) return `<div class="bar-fill empty" style="height:${Math.max(heightPct,2)}%"></div>`;
+  const segments = Object.entries(byProject)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, amt]) => {
+      const s = colorStyles(getColor(name));
+      const segPct = (amt / total) * 100;
+      return `<div class="bar-segment" style="height:${segPct}%;background:${s.border}"></div>`;
+    }).join('');
+  return `<div class="bar-fill" style="height:${heightPct}%">${segments}</div>`;
+}
+
+function renderDetailList(containerId, byProject, total) {
+  const rows = Object.entries(byProject)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, amt]) => {
+      const s = colorStyles(getColor(name));
+      const pct = total > 0 ? (amt / total) * 100 : 0;
+      return `<div class="bar-detail-row">
+        <span class="bar-detail-swatch" style="background:${s.border}"></span>
+        <span class="bar-detail-name">${name}</span>
+        <span class="bar-detail-amount">${formatEUR(amt)}</span>
+        <span class="bar-detail-pct">${pct.toFixed(0)}%</span>
+      </div>`;
+    }).join('');
+  document.getElementById(containerId).innerHTML = rows || '<div class="revenue-empty">Aucun projet sur cette période.</div>';
+}
+
 function renderRevenue() {
-  const monthly = computeMonthlyRevenue();
-  window.__monthlyRevenue = monthly;
+  const monthlyByProject = computeRevenueBreakdown();
+  window.__monthlyByProject = monthlyByProject;
+  closeBarDetail('yearly');
+  closeBarDetail('monthly');
 
-  const yearly = {};
-  Object.entries(monthly).forEach(([key, amount]) => {
+  const monthKeysByYear = {};
+  Object.keys(monthlyByProject).forEach(key => {
     const year = key.split('-')[0];
-    yearly[year] = (yearly[year] || 0) + amount;
+    (monthKeysByYear[year] = monthKeysByYear[year] || []).push(key);
   });
-  const years = Object.keys(yearly).sort();
+  const years = Object.keys(monthKeysByYear).sort();
+  const yearlyAgg = years.map(y => aggregateByProject(monthKeysByYear[y], monthlyByProject));
 
-  const totalAll = Object.values(yearly).reduce((a, b) => a + b, 0);
+  const totalAll = yearlyAgg.reduce((a, y) => a + y.total, 0);
   document.getElementById('revenue-total-all').textContent = years.length ? 'Total : ' + formatEUR(totalAll) : '';
 
   const yearlyChart = document.getElementById('yearly-chart');
   if (!years.length) {
     yearlyChart.innerHTML = '<div class="revenue-empty">Renseignez un budget par projet (bouton « Projets ») pour voir apparaître le chiffre d\'affaires.</div>';
   } else {
-    const maxVal = Math.max(...years.map(y => yearly[y]));
-    const firstVal = yearly[years[0]];
-    const fmtPct = p => (p === null ? '—' : (p >= 0 ? '+' : '') + p.toFixed(0) + '%');
+    const maxVal = Math.max(...yearlyAgg.map(a => a.total));
     yearlyChart.innerHTML = years.map((y, i) => {
-      const val = yearly[y];
-      const heightPct = maxVal > 0 ? Math.max(2, (val / maxVal) * 100) : 2;
-      let growthHtml = '';
-      if (i > 0) {
-        const prevVal = yearly[years[i - 1]];
-        const yoy = prevVal > 0 ? ((val - prevVal) / prevVal) * 100 : null;
-        const vsFirst = firstVal > 0 ? ((val - firstVal) / firstVal) * 100 : null;
-        growthHtml = `<div class="bar-growth ${yoy === null || yoy >= 0 ? 'up' : 'down'}">${fmtPct(yoy)} vs ${years[i-1]}</div>
-                      <div class="bar-growth ${vsFirst === null || vsFirst >= 0 ? 'up' : 'down'}" style="opacity:0.7">${fmtPct(vsFirst)} vs ${years[0]}</div>`;
-      }
+      const { total } = yearlyAgg[i];
+      const heightPct = maxVal > 0 ? Math.max(2, (total / maxVal) * 100) : 2;
       return `<div class="bar-col">
-        <div class="bar-value">${formatEUR(val)}</div>
-        ${growthHtml}
-        <div class="bar-fill" style="height:${heightPct}%"></div>
+        ${stackedBarHtml(yearlyAgg[i].byProject, total, heightPct)}
         <div class="bar-label">${y}</div>
       </div>`;
     }).join('');
+    yearlyChart.querySelectorAll('.bar-fill').forEach((el, i) => {
+      el.onclick = () => showYearlyDetail(years, yearlyAgg, i);
+    });
   }
 
   const select = document.getElementById('revenue-year-select');
@@ -478,33 +551,65 @@ function renderRevenue() {
   renderMonthlyChart();
 }
 
+function showYearlyDetail(years, yearlyAgg, index) {
+  const y = years[index];
+  const { byProject, total } = yearlyAgg[index];
+  document.getElementById('yearly-detail-title').textContent = y + ' — ' + formatEUR(total);
+
+  const fmtPct = p => (p === null ? '—' : (p >= 0 ? '+' : '') + p.toFixed(0) + '%');
+  let growthText = '';
+  if (index > 0) {
+    const prevTotal = yearlyAgg[index - 1].total;
+    const firstTotal = yearlyAgg[0].total;
+    const yoy = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
+    const vsFirst = index > 0 && firstTotal > 0 ? ((total - firstTotal) / firstTotal) * 100 : null;
+    growthText = `<span class="${yoy === null || yoy >= 0 ? 'up' : 'down'}">${fmtPct(yoy)} vs ${years[index-1]}</span>` +
+      (index > 1 ? ` &nbsp;·&nbsp; <span class="${vsFirst === null || vsFirst >= 0 ? 'up' : 'down'}">${fmtPct(vsFirst)} vs ${years[0]}</span>` : '');
+  }
+  document.getElementById('yearly-detail-growth').innerHTML = growthText;
+
+  renderDetailList('yearly-detail-list', byProject, total);
+  document.getElementById('yearly-detail').classList.add('open');
+  document.querySelectorAll('#yearly-chart .bar-fill').forEach((el, i) => el.classList.toggle('selected', i === index));
+}
+
 function renderMonthlyChart() {
-  const monthly = window.__monthlyRevenue || {};
+  const monthlyByProject = window.__monthlyByProject || {};
   const select = document.getElementById('revenue-year-select');
   const year = select.value;
   const chart = document.getElementById('monthly-chart');
+  closeBarDetail('monthly');
   if (!year) { chart.innerHTML = '<div class="revenue-empty">Aucune donnée.</div>'; return; }
 
-  let labels, buckets;
+  let labels, bucketKeys;
   if (revenueGranularity === 'month') {
     labels = MONTHS_FR;
-    buckets = labels.map((_, i) => monthly[year + '-' + String(i + 1).padStart(2, '0')] || 0);
+    bucketKeys = labels.map((_, i) => [year + '-' + String(i + 1).padStart(2, '0')]);
   } else {
     labels = ['T1', 'T2', 'T3', 'T4'];
-    buckets = [0, 0, 0, 0];
-    for (let m = 0; m < 12; m++) {
-      buckets[Math.floor(m / 3)] += monthly[year + '-' + String(m + 1).padStart(2, '0')] || 0;
-    }
+    bucketKeys = [0, 1, 2, 3].map(q => [0, 1, 2].map(m => year + '-' + String(q * 3 + m + 1).padStart(2, '0')));
   }
-  const maxVal = Math.max(...buckets, 0);
-  chart.innerHTML = buckets.map((val, i) => {
-    const heightPct = maxVal > 0 ? (val > 0 ? Math.max(2, (val / maxVal) * 100) : 0) : 0;
+  const aggs = bucketKeys.map(keys => aggregateByProject(keys, monthlyByProject));
+  const maxVal = Math.max(...aggs.map(a => a.total), 0);
+
+  chart.innerHTML = aggs.map((agg, i) => {
+    const heightPct = maxVal > 0 ? (agg.total > 0 ? Math.max(2, (agg.total / maxVal) * 100) : 0) : 0;
     return `<div class="bar-col">
-      <div class="bar-value">${val > 0 ? formatEUR(val) : ''}</div>
-      <div class="bar-fill" style="height:${heightPct}%"></div>
+      ${stackedBarHtml(agg.byProject, agg.total, heightPct)}
       <div class="bar-label">${labels[i]}</div>
     </div>`;
   }).join('');
+  chart.querySelectorAll('.bar-fill').forEach((el, i) => {
+    el.onclick = () => showMonthlyDetail(labels, aggs, year, i);
+  });
+}
+
+function showMonthlyDetail(labels, aggs, year, index) {
+  const { byProject, total } = aggs[index];
+  document.getElementById('monthly-detail-title').textContent = labels[index] + ' ' + year + ' — ' + formatEUR(total);
+  renderDetailList('monthly-detail-list', byProject, total);
+  document.getElementById('monthly-detail').classList.add('open');
+  document.querySelectorAll('#monthly-chart .bar-fill').forEach((el, i) => el.classList.toggle('selected', i === index));
 }
 
 function parseICS(text) {
