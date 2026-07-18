@@ -48,6 +48,24 @@
   .color-swatch:hover { transform: scale(1.15); }
   .color-row span { font-size: 12px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .color-row input[type=color] { display: none; }
+  .color-row input[type=number] { width: 92px; flex-shrink: 0; font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); }
+
+  .revenue-section { margin-top: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+  .revenue-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .revenue-top h2 { font-size: 15px; font-weight: 500; }
+  .revenue-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .revenue-controls select { font-family: 'DM Sans', sans-serif; font-size: 13px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: var(--radius); padding: 6px 10px; color: var(--text); }
+  .revenue-controls button { padding: 6px 12px; font-size: 12px; }
+  .revenue-total { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-2); }
+  .bar-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 8px 4px 0; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+  .bar-value { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-2); margin-bottom: 4px; white-space: nowrap; }
+  .bar-growth { font-size: 10px; font-family: 'DM Mono', monospace; margin-bottom: 2px; white-space: nowrap; }
+  .bar-growth.up { color: #1D9E75; }
+  .bar-growth.down { color: #D85A30; }
+  .bar-fill { width: 100%; max-width: 56px; background: var(--text); border-radius: 4px 4px 0 0; transition: height 0.2s; min-height: 2px; }
+  .bar-label { font-size: 11px; color: var(--text-2); margin-top: 8px; font-family: 'DM Mono', monospace; text-align: center; }
+  .revenue-empty { padding: 24px; text-align: center; color: var(--text-3); font-size: 13px; }
 
   .tl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
   .tl-scroll { overflow-x: auto; }
@@ -90,7 +108,7 @@
     </button>
     <button class="icon-btn" id="btn-palette" onclick="togglePanel()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-      Couleurs
+      Projets
     </button>
     <button class="icon-btn" id="btn-refresh" onclick="loadAndRender()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
@@ -133,9 +151,13 @@
 
 <div class="color-panel" id="color-panel">
   <div class="color-panel-top">
-    <h2>Couleur par projet</h2>
-    <button class="reset-all" onclick="resetAllColors()">Réinitialiser tout</button>
+    <h2>Couleur et budget par projet</h2>
+    <button class="reset-all" onclick="resetAllColors()">Réinitialiser les couleurs</button>
   </div>
+  <p style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5;">
+    Le budget renseigné par projet est reparti au prorata des jours de ce projet dans chaque année
+    (et chaque mois) pour construire les graphiques de chiffre d'affaires ci-dessous.
+  </p>
   <div class="color-grid" id="color-grid"></div>
 </div>
 
@@ -162,12 +184,32 @@
   </div>
 </div>
 
+<div class="revenue-section">
+  <div class="revenue-top">
+    <h2>Chiffre d'affaires par année</h2>
+    <span class="revenue-total" id="revenue-total-all"></span>
+  </div>
+  <div id="yearly-chart" class="bar-chart"></div>
+</div>
+
+<div class="revenue-section">
+  <div class="revenue-top">
+    <h2>Détail d'une année</h2>
+    <div class="revenue-controls">
+      <select id="revenue-year-select" onchange="renderMonthlyChart()"></select>
+      <button id="btn-granularity-month" class="active" onclick="setGranularity('month')">Mois</button>
+      <button id="btn-granularity-quarter" onclick="setGranularity('quarter')">Trimestre</button>
+    </div>
+  </div>
+  <div id="monthly-chart" class="bar-chart"></div>
+</div>
+
 <script>
 const ICS_URL_KEY = 'planning-ics-url';
 const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
 const PALETTE = ['#378ADD','#1D9E75','#7F77DD','#D85A30','#D4537E','#639922','#BA7517','#0F6E56','#993C1D','#534AB7'];
 
-let events = [], projectNames = [], projectColors = {}, nMonths = 6;
+let events = [], projectNames = [], projectColors = {}, projectBudgets = {}, nMonths = 6, revenueGranularity = 'month', isDemoMode = false;
 let viewStart = new Date();
 viewStart = new Date(viewStart.getFullYear(), viewStart.getMonth(), 1);
 
@@ -233,7 +275,7 @@ function demoEvents() {
     { person: 'Sam', label: 'Migration API', type: 'projet', start: d(-5), end: d(25) },
     { person: 'Sam', label: 'Audit accessibilité', type: 'projet', start: d(28), end: d(40) },
     { person: 'Jordan', label: 'Refonte site vitrine', type: 'projet', start: d(-10), end: d(5) },
-    { person: 'Jordan', label: 'Nouvelle offre produit', type: 'projet', start: d(8), end: d(45) },
+    { person: 'Jordan', label: 'Nouvelle offre produit', type: 'projet', start: d(8), end: d(400) },
     { person: 'Jordan', label: 'Congés', type: 'conges', start: d(50), end: d(55) },
     { person: 'Camille', label: 'Migration API', type: 'projet', start: d(-15), end: d(10) },
     { person: 'Camille', label: 'Audit accessibilité', type: 'projet', start: d(15), end: d(38) },
@@ -277,8 +319,24 @@ function buildColorPanel() {
     const label = document.createElement('span');
     label.textContent = name;
 
+    const budgetInput = document.createElement('input');
+    budgetInput.type = 'number';
+    budgetInput.min = '0';
+    budgetInput.step = '100';
+    budgetInput.placeholder = 'Budget €';
+    const demoDefault = (isDemoMode && Object.keys(projectBudgets).length === 0) ? demoBudgets()[name] : null;
+    budgetInput.value = projectBudgets[name] || demoDefault || '';
+    budgetInput.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (e.target.value === '' || isNaN(val)) delete projectBudgets[name];
+      else projectBudgets[name] = val;
+      saveBudgets();
+      renderRevenue();
+    };
+
     row.appendChild(swatch);
     row.appendChild(label);
+    row.appendChild(budgetInput);
     row.appendChild(input);
     grid.appendChild(row);
 
@@ -294,6 +352,159 @@ function resetAllColors() {
   saveColors();
   buildColorPanel();
   render();
+}
+
+function loadBudgets() {
+  try { projectBudgets = JSON.parse(localStorage.getItem('planning-budgets') || '{}'); } catch(e) { projectBudgets = {}; }
+}
+function saveBudgets() { localStorage.setItem('planning-budgets', JSON.stringify(projectBudgets)); }
+
+// Étendue globale d'un projet : du premier jour au dernier jour où il
+// apparaît, tous intervenants confondus (un même projet peut avoir des
+// plages différentes selon les personnes affectées).
+function projectSpan(name) {
+  const evs = events.filter(e => e.type === 'projet' && e.label === name);
+  if (!evs.length) return null;
+  const start = new Date(Math.min(...evs.map(e => e.start.getTime())));
+  const end = new Date(Math.max(...evs.map(e => e.end.getTime())));
+  return { start, end };
+}
+
+// Répartit un budget au prorata du nombre de jours du projet dans chaque
+// mois calendaire. `end` est inclus (dernier jour du projet).
+function prorateAcrossMonths(start, end, budget) {
+  const msPerDay = 86400000;
+  const totalDays = Math.round((end - start) / msPerDay) + 1;
+  const result = {};
+  if (totalDays <= 0 || !budget) return result;
+  let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  while (cursor <= end) {
+    const y = cursor.getFullYear(), m = cursor.getMonth();
+    const monthEnd = new Date(y, m + 1, 0);
+    const segmentEnd = monthEnd < end ? monthEnd : end;
+    const segmentDays = Math.round((segmentEnd - cursor) / msPerDay) + 1;
+    const key = y + '-' + String(m + 1).padStart(2, '0');
+    result[key] = (result[key] || 0) + budget * (segmentDays / totalDays);
+    cursor = new Date(y, m + 1, 1);
+  }
+  return result;
+}
+
+function demoBudgets() {
+  return {
+    'Refonte site vitrine': 18000,
+    'Migration API': 32000,
+    'Audit accessibilité': 9000,
+    'Nouvelle offre produit': 64000,
+  };
+}
+
+function computeMonthlyRevenue() {
+  const monthly = {};
+  const budgets = (isDemoMode && Object.keys(projectBudgets).length === 0) ? demoBudgets() : projectBudgets;
+  projectNames.forEach(name => {
+    const budget = budgets[name];
+    if (!budget) return;
+    const span = projectSpan(name);
+    if (!span) return;
+    const prorated = prorateAcrossMonths(span.start, span.end, budget);
+    Object.entries(prorated).forEach(([key, amount]) => {
+      monthly[key] = (monthly[key] || 0) + amount;
+    });
+  });
+  return monthly;
+}
+
+function formatEUR(n) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+}
+
+function setGranularity(g) {
+  revenueGranularity = g;
+  document.getElementById('btn-granularity-month').classList.toggle('active', g === 'month');
+  document.getElementById('btn-granularity-quarter').classList.toggle('active', g === 'quarter');
+  renderMonthlyChart();
+}
+
+function renderRevenue() {
+  const monthly = computeMonthlyRevenue();
+  window.__monthlyRevenue = monthly;
+
+  const yearly = {};
+  Object.entries(monthly).forEach(([key, amount]) => {
+    const year = key.split('-')[0];
+    yearly[year] = (yearly[year] || 0) + amount;
+  });
+  const years = Object.keys(yearly).sort();
+
+  const totalAll = Object.values(yearly).reduce((a, b) => a + b, 0);
+  document.getElementById('revenue-total-all').textContent = years.length ? 'Total : ' + formatEUR(totalAll) : '';
+
+  const yearlyChart = document.getElementById('yearly-chart');
+  if (!years.length) {
+    yearlyChart.innerHTML = '<div class="revenue-empty">Renseignez un budget par projet (bouton « Projets ») pour voir apparaître le chiffre d\'affaires.</div>';
+  } else {
+    const maxVal = Math.max(...years.map(y => yearly[y]));
+    const firstVal = yearly[years[0]];
+    const fmtPct = p => (p === null ? '—' : (p >= 0 ? '+' : '') + p.toFixed(0) + '%');
+    yearlyChart.innerHTML = years.map((y, i) => {
+      const val = yearly[y];
+      const heightPct = maxVal > 0 ? Math.max(2, (val / maxVal) * 100) : 2;
+      let growthHtml = '';
+      if (i > 0) {
+        const prevVal = yearly[years[i - 1]];
+        const yoy = prevVal > 0 ? ((val - prevVal) / prevVal) * 100 : null;
+        const vsFirst = firstVal > 0 ? ((val - firstVal) / firstVal) * 100 : null;
+        growthHtml = `<div class="bar-growth ${yoy === null || yoy >= 0 ? 'up' : 'down'}">${fmtPct(yoy)} vs ${years[i-1]}</div>
+                      <div class="bar-growth ${vsFirst === null || vsFirst >= 0 ? 'up' : 'down'}" style="opacity:0.7">${fmtPct(vsFirst)} vs ${years[0]}</div>`;
+      }
+      return `<div class="bar-col">
+        <div class="bar-value">${formatEUR(val)}</div>
+        ${growthHtml}
+        <div class="bar-fill" style="height:${heightPct}%"></div>
+        <div class="bar-label">${y}</div>
+      </div>`;
+    }).join('');
+  }
+
+  const select = document.getElementById('revenue-year-select');
+  const previousSelection = select.value;
+  select.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  const currentYear = String(new Date().getFullYear());
+  if (years.includes(previousSelection)) select.value = previousSelection;
+  else if (years.includes(currentYear)) select.value = currentYear;
+  else if (years.length) select.value = years[years.length - 1];
+
+  renderMonthlyChart();
+}
+
+function renderMonthlyChart() {
+  const monthly = window.__monthlyRevenue || {};
+  const select = document.getElementById('revenue-year-select');
+  const year = select.value;
+  const chart = document.getElementById('monthly-chart');
+  if (!year) { chart.innerHTML = '<div class="revenue-empty">Aucune donnée.</div>'; return; }
+
+  let labels, buckets;
+  if (revenueGranularity === 'month') {
+    labels = MONTHS_FR;
+    buckets = labels.map((_, i) => monthly[year + '-' + String(i + 1).padStart(2, '0')] || 0);
+  } else {
+    labels = ['T1', 'T2', 'T3', 'T4'];
+    buckets = [0, 0, 0, 0];
+    for (let m = 0; m < 12; m++) {
+      buckets[Math.floor(m / 3)] += monthly[year + '-' + String(m + 1).padStart(2, '0')] || 0;
+    }
+  }
+  const maxVal = Math.max(...buckets, 0);
+  chart.innerHTML = buckets.map((val, i) => {
+    const heightPct = maxVal > 0 ? (val > 0 ? Math.max(2, (val / maxVal) * 100) : 0) : 0;
+    return `<div class="bar-col">
+      <div class="bar-value">${val > 0 ? formatEUR(val) : ''}</div>
+      <div class="bar-fill" style="height:${heightPct}%"></div>
+      <div class="bar-label">${labels[i]}</div>
+    </div>`;
+  }).join('');
 }
 
 function parseICS(text) {
@@ -324,16 +535,19 @@ async function loadAndRender() {
   const icsUrl = localStorage.getItem(ICS_URL_KEY);
 
   if (!icsUrl) {
+    isDemoMode = true;
     events = demoEvents();
     projectNames = [...new Set(events.filter(e => e.type === 'projet').map(e => e.label))].sort();
     buildColorPanel();
     document.getElementById('last-updated').textContent = 'Données de démonstration';
     status.textContent = events.length + ' événements (démo)';
     render();
+    renderRevenue();
     btn.style.opacity = '1';
     return;
   }
 
+  isDemoMode = false;
   status.textContent = 'Chargement…';
   try {
     const res = await fetch(icsUrl);
@@ -347,10 +561,11 @@ async function loadAndRender() {
       now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     status.textContent = events.length + ' événements';
     render();
+    renderRevenue();
   } catch(e) {
     status.className = 'error';
     status.textContent = 'Erreur : ' + e.message + ' — vérifiez l\'URL ou une restriction CORS';
-    if (events.length > 0) render();
+    if (events.length > 0) { render(); renderRevenue(); }
   } finally { btn.style.opacity = '1'; }
 }
 
@@ -421,6 +636,7 @@ function render() {
 }
 
 loadColors();
+loadBudgets();
 loadAndRender();
 setInterval(loadAndRender, 5*60*1000);
 </script>

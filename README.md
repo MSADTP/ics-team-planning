@@ -13,6 +13,7 @@ Aucune donnée n'est envoyée à un serveur : l'URL du flux et les couleurs choi
 - Timeline par personne, vue 3 / 6 / 12 mois, navigation mois par mois
 - Distinction visuelle projets / congés, ligne "aujourd'hui"
 - Couleur personnalisable par projet, mémorisée localement
+- Budget par projet, avec calcul du chiffre d'affaires par année et par mois/trimestre
 - Source de données interchangeable depuis l'interface (pas de config à éditer)
 - Données de démonstration au premier chargement, avant même de connecter un vrai calendrier
 - Aucune dépendance, aucun build : un seul fichier HTML
@@ -46,6 +47,19 @@ END:VEVENT
 ```
 
 Un événement dont le résumé contient « congé » (insensible à la casse, avec ou sans accent — ex. `Camille > Congés`) est classé comme congé plutôt que comme projet, et affiché avec un style distinct.
+
+## Chiffre d'affaires par projet
+
+![Graphiques de chiffre d'affaires par année et par mois](screenshot-revenue.png)
+
+Depuis le panneau **Projets**, renseignez un budget total par projet. Ce budget est ensuite réparti au prorata du nombre de jours du projet dans chaque mois calendaire — un projet qui s'étale sur deux années voit son budget partagé entre les deux au prorata exact des jours de chaque côté de la frontière, pas divisé arbitrairement.
+
+Deux graphiques en découlent :
+
+- **Par année** : une colonne par année où au moins un projet a du budget, avec la croissance en % par rapport à l'année précédente et par rapport à la toute première année de données.
+- **Détail d'une année** : la même somme éclatée par mois ou par trimestre, pour une année choisie dans le menu déroulant.
+
+Le budget d'un projet couvre l'étendue complète du projet, tous intervenants confondus (du premier jour où il apparaît pour n'importe qui à son dernier jour), pas seulement la plage d'une personne en particulier.
 
 ## Déployer
 
